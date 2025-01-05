@@ -7,6 +7,14 @@
 
 import UIKit
 import SnapKit
+import RxSwift
+import RxCocoa
+
+extension UIView {
+    var isParentScrolling: Bool {
+        return (superview as? UIScrollView)?.isScrolling ?? false
+    }
+}
 
 extension UIScrollView {
     var isScrolling: Bool {
@@ -86,10 +94,23 @@ final class TableViewCell: UITableViewCell {
         return label
     }()
     
+    private lazy var cellButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Button", for: .normal)
+        button.backgroundColor = .systemBlue
+        button.layer.cornerRadius = 10
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
+        return button
+    }()
+    
+    private let disposeBag: DisposeBag = DisposeBag()
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         self.selectionStyle = .none
+        
         self.setupUI()
+        self.bind()
     }
     
     required init?(coder: NSCoder) {
@@ -98,11 +119,28 @@ final class TableViewCell: UITableViewCell {
     
     private func setupUI() {
         contentView.addSubview(self.titleLabel)
+        contentView.addSubview(self.cellButton)
         
         self.titleLabel.snp.makeConstraints { make in
             make.verticalEdges.equalToSuperview().inset(18)
             make.leading.equalToSuperview().offset(18)
         }
+        
+        self.cellButton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().inset(18)
+            make.size.equalTo(CGSize(width: 60, height: 30))
+            make.centerY.equalToSuperview()
+        }
+    }
+    
+    private func bind() {
+        self.cellButton.rx.tap
+            .observe(on: MainScheduler.instance)
+            .subscribe(with: self, onNext: { owner, _ in
+                guard !owner.isParentScrolling else { return }
+                print("### 셀 버튼 탭 - 오너: \(owner)")
+            })
+            .disposed(by: self.disposeBag)
     }
     
     func config(row: Int) {
